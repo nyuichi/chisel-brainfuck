@@ -29,7 +29,7 @@ class Brainfuck extends Module {
   val ip = Reg(init = UInt(0, log2Up(ientries)))
   val dp = Reg(init = UInt(0, log2Up(dentries)))
 
-  val op_inc :: op_dec :: op_pinc :: op_pdec :: op_put :: op_get :: op_jz :: op_jmp :: Nil = (0 until 8).toList
+  val op_inc :: op_dec :: op_pinc :: op_pdec :: op_put :: op_get :: op_jz :: op_jmp :: Nil = Enum(UInt(), 8)
 
   val next = UInt(width = 8)
 
@@ -59,23 +59,23 @@ class Brainfuck extends Module {
 
     // exec
     switch (op) {
-      is(UInt(op_inc)) {
+      is(op_inc) {
         next := operand + UInt(1)
       }
-      is(UInt(op_dec)) {
+      is(op_dec) {
         next := operand - UInt(1)
       }
     }
 
     // IO
     switch (op) {
-      is(UInt(op_put)) {
+      is(op_put) {
         when (io.uart.tx.ready) {
           io.uart.tx.valid := Bool(true)
           io.uart.tx.bits := operand
         }
       }
-      is(UInt(op_get)) {
+      is(op_get) {
         when (io.uart.rx.valid) {
           next := io.uart.rx.bits
           io.uart.rx.ready := Bool(false)
@@ -87,44 +87,44 @@ class Brainfuck extends Module {
 
     // write
     switch (op) {
-      is(UInt(op_inc), UInt(op_dec), UInt(op_get)) {
+      is(op_inc, op_dec, op_get) {
         data(dp) := next
       }
     }
 
     // update dp
     switch (op) {
-      is(UInt(op_pinc)) {
+      is(op_pinc) {
         dp := dp + UInt(1)
       }
-      is(UInt(op_pdec)) {
+      is(op_pdec) {
         dp := dp - UInt(1)
       }
     }
 
     // update ip
     switch (op) {
-      is(UInt(op_jz)) {
+      is(op_jz) {
         when (operand === UInt(0)) {
           ip := ip + UInt(1) + addr
         } .otherwise {
           ip := ip + UInt(2) // skip addr operand
         }
       }
-      is(UInt(op_jmp)) {
+      is(op_jmp) {
         ip := ip + UInt(1) - addr
       }
-      is(UInt(op_put)) {
+      is(op_put) {
         when (io.uart.tx.ready) {
           ip := ip + UInt(1)
         }
       }
-      is(UInt(op_get)) {
+      is(op_get) {
         when (io.uart.rx.valid) {
           ip := ip + UInt(1)
         }
       }
-      is(UInt(op_pinc), UInt(op_pdec), UInt(op_inc), UInt(op_dec)) {
+      is(op_pinc, op_pdec, op_inc, op_dec) {
         ip := ip + UInt(1)
       }
     }
@@ -137,8 +137,8 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
 
   val helloworld = "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
 
-  def compile(str: String): (MutableList[Int], Int) = {
-    val bc = MutableList.empty[Int]
+  def compile(str: String): (MutableList[UInt], Int) = {
+    val bc = MutableList.empty[UInt]
     var i = 0
     while (i < str.length) {
       str(i) match {
@@ -151,10 +151,10 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
         case '[' => {
           val (ibc, n) = compile(str.drop(i + 1))
           bc += c.op_jz
-          bc += ibc.length + 3
+          bc += UInt(ibc.length + 3)
           bc ++= ibc
           bc += c.op_jmp
-          bc += ibc.length + 3
+          bc += UInt(ibc.length + 3)
           i += n + 1
           assert(str(i) == ']')
         }
@@ -192,12 +192,12 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
   poke(c.io.data.valid, 0)
 
   // init code
-  for (t <- 0 until 1024) {
+  for ((v, t) <- bc.zipWithIndex) {
     step(1)
 
     poke(c.io.code.valid, 1)
     poke(c.io.code.addr, t)
-    poke(c.io.code.bits, if (t < bc.length) bc(t) else 0)
+    poke(c.io.code.bits, v.litValue())
   }
 
   step(1)
