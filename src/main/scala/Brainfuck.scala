@@ -135,7 +135,7 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
 
   val helloworld = "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
 
-  def compile(str: String): (MutableList[UInt], Int) = {
+  def compile(str: String): (Seq[UInt], Int) = {
     val bc = MutableList.empty[UInt]
     var i = 0
     while (i < str.length) {
@@ -166,47 +166,51 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
     (bc, i)
   }
 
-  val (bc, _) = compile(helloworld)
+  def boot[T <: Seq[UInt]](bc: T) {
+    poke(c.io.tx.ready, 1)
+    poke(c.io.rx.valid, 0)
+    poke(c.io.rx.bits, 0)
 
-  poke(c.io.tx.ready, 1)
-  poke(c.io.rx.valid, 0)
-  poke(c.io.rx.bits, 0)
+    poke(c.io.init, 1)
+    poke(c.io.data.valid, 0)
+    poke(c.io.code.valid, 0)
 
-  poke(c.io.init, 1)
-  poke(c.io.data.valid, 0)
-  poke(c.io.code.valid, 0)
+    // init data
+    for (t <- 0 until 32768) {
+      step(1)
 
-  // init data
-  for (t <- 0 until 32768) {
+      poke(c.io.data.valid, 1)
+      poke(c.io.data.addr, t)
+      poke(c.io.data.bits, 0)
+    }
+
     step(1)
 
-    poke(c.io.data.valid, 1)
-    poke(c.io.data.addr, t)
-    poke(c.io.data.bits, 0)
-  }
+    poke(c.io.data.valid, 0)
 
-  step(1)
+    // init code
+    for ((v, t) <- bc.zipWithIndex) {
+      step(1)
 
-  poke(c.io.data.valid, 0)
+      poke(c.io.code.valid, 1)
+      poke(c.io.code.addr, t)
+      poke(c.io.code.bits, v.litValue())
+    }
 
-  // init code
-  for ((v, t) <- bc.zipWithIndex) {
     step(1)
 
-    poke(c.io.code.valid, 1)
-    poke(c.io.code.addr, t)
-    poke(c.io.code.bits, v.litValue())
+    poke(c.io.code.valid, 0)
+    poke(c.io.init, 0)
+    poke(c.io.boot, 1)
+
+    step(1)
+
+    poke(c.io.boot, 0)
   }
 
-  step(1)
+  val bc = compile(helloworld)._1
 
-  poke(c.io.code.valid, 0)
-  poke(c.io.init, 0)
-  poke(c.io.boot, 1)
-
-  step(1)
-
-  poke(c.io.boot, 0)
+  boot(bc)
 
   // main loop
   var s = ""
