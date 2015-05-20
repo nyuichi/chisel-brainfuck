@@ -7,11 +7,6 @@ class InitIO(aw: Int, dw: Int) extends Bundle {
   val bits = UInt(INPUT, dw)
 }
 
-class UartIO extends Bundle {
-  val tx = Decoupled(UInt(width = 8))
-  val rx = Decoupled(UInt(width = 8)).flip
-}
-
 class Brainfuck extends Module {
   val dentries = 32768
   val ientries = 1024
@@ -21,7 +16,8 @@ class Brainfuck extends Module {
     val code = new InitIO(log2Up(ientries), 8)
     val data = new InitIO(log2Up(dentries), 8)
     val boot = Bool(INPUT)
-    val uart = new UartIO
+    val tx = Decoupled(UInt(width = 8))
+    val rx = Decoupled(UInt(width = 8)).flip
   }
 
   val code = Mem(UInt(width = 8), ientries)
@@ -44,9 +40,9 @@ class Brainfuck extends Module {
 
   next := UInt(0)
 
-  io.uart.rx.ready := Bool(false)
-  io.uart.tx.valid := Bool(false)
-  io.uart.tx.bits := UInt(0)
+  io.rx.ready := Bool(false)
+  io.tx.valid := Bool(false)
+  io.tx.bits := UInt(0)
 
   unless (io.init || io.boot) {
     val inst = code(ip)
@@ -70,17 +66,17 @@ class Brainfuck extends Module {
     // IO
     switch (op) {
       is(op_put) {
-        when (io.uart.tx.ready) {
-          io.uart.tx.valid := Bool(true)
-          io.uart.tx.bits := operand
+        when (io.tx.ready) {
+          io.tx.valid := Bool(true)
+          io.tx.bits := operand
         }
       }
       is(op_get) {
-        when (io.uart.rx.valid) {
-          next := io.uart.rx.bits
-          io.uart.rx.ready := Bool(false)
+        when (io.rx.valid) {
+          next := io.rx.bits
+          io.rx.ready := Bool(false)
         } .otherwise {
-          io.uart.rx.ready := Bool(true)
+          io.rx.ready := Bool(true)
         }
       }
     }
@@ -115,12 +111,12 @@ class Brainfuck extends Module {
         ip := ip + UInt(1) - addr
       }
       is(op_put) {
-        when (io.uart.tx.ready) {
+        when (io.tx.ready) {
           ip := ip + UInt(1)
         }
       }
       is(op_get) {
-        when (io.uart.rx.valid) {
+        when (io.rx.valid) {
           ip := ip + UInt(1)
         }
       }
@@ -170,9 +166,9 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
 
   val (bc, _) = compile(helloworld)
 
-  poke(c.io.uart.tx.ready, 1)
-  poke(c.io.uart.rx.valid, 0)
-  poke(c.io.uart.rx.bits, 0)
+  poke(c.io.tx.ready, 1)
+  poke(c.io.rx.valid, 0)
+  poke(c.io.rx.bits, 0)
 
   poke(c.io.init, 1)
   poke(c.io.data.valid, 0)
@@ -215,8 +211,8 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
   for (t <- 0 until 1000) {
     step(1)
 
-    if (peek(c.io.uart.tx.valid) != 0) {
-      s += peek(c.io.uart.tx.bits).toChar
+    if (peek(c.io.tx.valid) != 0) {
+      s += peek(c.io.tx.bits).toChar
     }
   }
 
