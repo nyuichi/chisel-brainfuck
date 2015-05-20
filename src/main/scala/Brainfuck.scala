@@ -27,7 +27,7 @@ class Brainfuck extends Module {
 
   val op_inc :: op_dec :: op_pinc :: op_pdec :: op_put :: op_get :: op_jz :: op_jmp :: Nil = Enum(UInt(), 8)
 
-  val next = UInt(width = 8)
+  val res = UInt(width = 8)
 
   when (io.init) {
     when (io.code.valid) { code(io.code.addr) := io.code.bits }
@@ -38,7 +38,7 @@ class Brainfuck extends Module {
     ip := UInt(0)
   }
 
-  next := UInt(0)
+  res := UInt(0)
 
   io.rx.ready := Bool(false)
   io.tx.valid := Bool(false)
@@ -56,45 +56,20 @@ class Brainfuck extends Module {
     // exec
     switch (op) {
       is(op_inc) {
-        next := operand + UInt(1)
+        res := operand + UInt(1)
       }
       is(op_dec) {
-        next := operand - UInt(1)
-      }
-    }
-
-    // IO
-    switch (op) {
-      is(op_put) {
-        when (io.tx.ready) {
-          io.tx.valid := Bool(true)
-          io.tx.bits := operand
-        }
+        res := operand - UInt(1)
       }
       is(op_get) {
-        when (io.rx.valid) {
-          next := io.rx.bits
-          io.rx.ready := Bool(false)
-        } .otherwise {
-          io.rx.ready := Bool(true)
-        }
+        res := Mux(io.rx.valid, io.rx.bits, operand)
       }
     }
 
     // write
     switch (op) {
       is(op_inc, op_dec, op_get) {
-        data(dp) := next
-      }
-    }
-
-    // update dp
-    switch (op) {
-      is(op_pinc) {
-        dp := dp + UInt(1)
-      }
-      is(op_pdec) {
-        dp := dp - UInt(1)
+        data(dp) := res
       }
     }
 
@@ -122,6 +97,33 @@ class Brainfuck extends Module {
       }
       is(op_pinc, op_pdec, op_inc, op_dec) {
         ip := ip + UInt(1)
+      }
+    }
+
+    // update dp
+    switch (op) {
+      is(op_pinc) {
+        dp := dp + UInt(1)
+      }
+      is(op_pdec) {
+        dp := dp - UInt(1)
+      }
+    }
+
+    // IO
+    switch (op) {
+      is(op_put) {
+        when (io.tx.ready) {
+          io.tx.valid := Bool(true)
+          io.tx.bits := operand
+        }
+      }
+      is(op_get) {
+        when (io.rx.valid) {
+          io.rx.ready := Bool(false)
+        } .otherwise {
+          io.rx.ready := Bool(true)
+        }
       }
     }
   }
