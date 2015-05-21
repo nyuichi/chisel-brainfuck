@@ -166,7 +166,7 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
   }
 
   def boot[T <: Seq[UInt]](bc: T) {
-    poke(c.io.tx.ready, 1)
+    poke(c.io.tx.ready, 0)
     poke(c.io.rx.valid, 0)
     poke(c.io.rx.bits, 0)
 
@@ -207,19 +207,25 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
     poke(c.io.boot, 0)
   }
 
+  def run(time: Int): String = {
+    poke(c.io.tx.ready, 1)
+
+    var s = ""
+    for (t <- 0 until time) {
+      step(1)
+
+      if (peek(c.io.tx.valid) != 0) {
+        s += peek(c.io.tx.bits).toChar
+      }
+    }
+    s
+  }
+
   val bc = compile("helloworld:+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+.")
 
   boot(bc)
 
-  // main loop
-  var s = ""
-  for (t <- 0 until 1000) {
-    step(1)
-
-    if (peek(c.io.tx.valid) != 0) {
-      s += peek(c.io.tx.bits).toChar
-    }
-  }
+  val s = run(1000)
 
   println(s)
 
