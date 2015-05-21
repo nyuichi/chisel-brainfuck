@@ -131,39 +131,38 @@ class Brainfuck extends Module {
 
 class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
 
-  import scala.collection.mutable.MutableList
-
-  val helloworld = "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
-
-  def compile(str: String): (Seq[UInt], Int) = {
-    val bc = MutableList.empty[UInt]
+  def compile(str: String): Seq[UInt] = {
     var i = 0
-    while (i < str.length) {
-      str(i) match {
-        case '+' => bc += c.op_inc
-        case '-' => bc += c.op_dec
-        case '>' => bc += c.op_pinc
-        case '<' => bc += c.op_pdec
-        case '.' => bc += c.op_put
-        case ',' => bc += c.op_get
-        case '[' => {
-          val (ibc, n) = compile(str.drop(i + 1))
-          bc += c.op_jz
-          bc += UInt(ibc.length + 3)
-          bc ++= ibc
-          bc += c.op_jmp
-          bc += UInt(ibc.length + 3)
-          i += n + 1
-          assert(str(i) == ']')
+    def go(): Seq[UInt] = {
+      val bc = scala.collection.mutable.MutableList.empty[UInt]
+      while (i < str.length) {
+        str(i) match {
+          case '+' => i += 1; bc += c.op_inc
+          case '-' => i += 1; bc += c.op_dec
+          case '>' => i += 1; bc += c.op_pinc
+          case '<' => i += 1; bc += c.op_pdec
+          case '.' => i += 1; bc += c.op_put
+          case ',' => i += 1; bc += c.op_get
+          case '[' => {
+            i += 1
+            val ibc = go()
+            bc += c.op_jz
+            bc += UInt(ibc.length + 3)
+            bc ++= ibc
+            assert(str(i) == ']')
+            i += 1
+            bc += c.op_jmp
+            bc += UInt(ibc.length + 3)
+          }
+          case ']' => {
+            return bc
+          }
+          case _ => i += 1
         }
-        case ']' => {
-          return (bc, i)
-        }
-        case _ => assert(false)
       }
-      i += 1
+      bc
     }
-    (bc, i)
+    go()
   }
 
   def boot[T <: Seq[UInt]](bc: T) {
@@ -208,7 +207,7 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
     poke(c.io.boot, 0)
   }
 
-  val bc = compile(helloworld)._1
+  val bc = compile("helloworld:+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+.")
 
   boot(bc)
 
