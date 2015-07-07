@@ -165,7 +165,7 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
     go()
   }
 
-  def boot[T <: Seq[UInt]](bc: T) {
+  def boot(bc: Seq[UInt]) {
     poke(c.io.tx.ready, 0)
     poke(c.io.rx.valid, 0)
     poke(c.io.rx.bits, 0)
