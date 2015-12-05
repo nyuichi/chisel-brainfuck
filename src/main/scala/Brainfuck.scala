@@ -144,40 +144,35 @@ class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Mod
 
 class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
 
-  import Brainfuck._
-
   def compile(str: String): Seq[Int] = {
-    var i = 0
-    def go(): Seq[Int] = {
-      val bc = scala.collection.mutable.MutableList.empty[Int]
-      while (i < str.length) {
-        str(i) match {
-          case '+' => i += 1; bc += Inc
-          case '-' => i += 1; bc += Dec
-          case '>' => i += 1; bc += PInc
-          case '<' => i += 1; bc += PDec
-          case '.' => i += 1; bc += Put
-          case ',' => i += 1; bc += Get
-          case '[' => {
-            i += 1
-            val ibc = go()
-            bc += Jz
-            bc += ibc.length + 3
-            bc ++= ibc
-            assert(str(i) == ']')
-            i += 1
-            bc += Jmp
-            bc += ibc.length + 3
-          }
-          case ']' => {
-            return bc
-          }
-          case _ => i += 1
+
+    import Brainfuck._
+
+    val bc = scala.collection.mutable.Buffer.empty[Seq[Int]]
+    val ll = scala.collection.mutable.Stack.empty[Int]
+
+    for (c <- str) {
+      c match {
+        case '+' => bc += Seq(Inc)
+        case '-' => bc += Seq(Dec)
+        case '>' => bc += Seq(PInc)
+        case '<' => bc += Seq(PDec)
+        case '.' => bc += Seq(Put)
+        case ',' => bc += Seq(Get)
+        case '[' => {
+          ll.push(bc.length)
         }
+        case ']' => {
+          val i = ll.pop
+          val j = bc.length + 1
+          bc.insert(i, Seq(Jz,  j - i + 2))
+          bc.insert(j, Seq(Jmp, j - i + 2))
+        }
+        case _ =>
       }
-      bc
     }
-    go()
+
+    bc.flatten
   }
 
   def boot(bc: Seq[Int]) {
