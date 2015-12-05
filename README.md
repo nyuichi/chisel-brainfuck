@@ -11,13 +11,13 @@ Brainfuck CPU written in Chisel
 
 Instructions:
 
-* `op_inc`
-* `op_dec`
-* `op_pinc`
-* `op_pdec`
-* `op_put` (write to output port)
-* `op_get` (read from input port)
-* `op_jz addr` (jump to `ip + 1 + addr` if reg(dp) is set to zero)
-* `op_jmp addr` (always jump to `ip + 1 - addr`)
+* `Inc`
+* `Dec`
+* `PInc`
+* `PDec`
+* `Put` (write to output port)
+* `Get` (read from input port)
+* `Jz addr` (jump to `ip + 1 + addr` if reg(dp) is set to zero)
+* `Jmp addr` (always jump to `ip + 1 - addr`)
 
-Tester class also contains a simple brainfuck compiler. You can test your own brainfuck code run on the generated cpu simulator by changing the value of `BrainfuckTests#helloworld`.
+Simple Brainfuck compiler is included in the Tester class (see `compile` method in BrainfuckTests class). You can run your own brainfuck code on the generated cpu simulator by changing the value of `BrainfuckTests#helloworld`.
