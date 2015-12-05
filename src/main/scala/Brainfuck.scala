@@ -124,17 +124,11 @@ class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Mod
     // IO
     switch (op) {
       is(UInt(Put)) {
-        when (io.tx.ready) {
-          io.tx.valid := Bool(true)
-          io.tx.bits := operand
-        }
+        io.tx.valid := Bool(true)
+        io.tx.bits := operand
       }
       is(UInt(Get)) {
-        when (io.rx.valid) {
-          io.rx.ready := Bool(false)
-        } .otherwise {
-          io.rx.ready := Bool(true)
-        }
+        io.rx.ready := Bool(true)
       }
     }
   }
