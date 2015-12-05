@@ -18,11 +18,11 @@ object Brainfuck {
   val Jz   = 6
   val Jmp  = 7
 
-  lazy val InstList = Seq(Inc, Dec, PInc, PDec, Put, Get, Jz, Jmp)
-
 }
 
 class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Module {
+
+  import Brainfuck._
 
   val io = new Bundle {
     val init = Bool(INPUT)
@@ -37,8 +37,6 @@ class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Mod
   val data = Mem(UInt(width = 8), dentries)
   val ip = Reg(init = UInt(0, log2Up(ientries)))
   val dp = Reg(init = UInt(0, log2Up(dentries)))
-
-  val Seq(op_inc, op_dec, op_pinc, op_pdec, op_put, op_get, op_jz, op_jmp) = Brainfuck.InstList map { UInt(_) }
 
   val res = UInt(width = 8)
 
@@ -68,70 +66,70 @@ class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Mod
 
     // exec
     switch (op) {
-      is(op_inc) {
+      is(UInt(Inc)) {
         res := operand + UInt(1)
       }
-      is(op_dec) {
+      is(UInt(Dec)) {
         res := operand - UInt(1)
       }
-      is(op_get) {
+      is(UInt(Get)) {
         res := Mux(io.rx.valid, io.rx.bits, operand)
       }
     }
 
     // write
     switch (op) {
-      is(op_inc, op_dec, op_get) {
+      is(UInt(Inc), UInt(Dec), UInt(Get)) {
         data(dp) := res
       }
     }
 
     // update ip
     switch (op) {
-      is(op_jz) {
+      is(UInt(Jz)) {
         when (operand === UInt(0)) {
           ip := ip + UInt(1) + addr
         } .otherwise {
           ip := ip + UInt(2) // skip addr operand
         }
       }
-      is(op_jmp) {
+      is(UInt(Jmp)) {
         ip := ip + UInt(1) - addr
       }
-      is(op_put) {
+      is(UInt(Put)) {
         when (io.tx.ready) {
           ip := ip + UInt(1)
         }
       }
-      is(op_get) {
+      is(UInt(Get)) {
         when (io.rx.valid) {
           ip := ip + UInt(1)
         }
       }
-      is(op_pinc, op_pdec, op_inc, op_dec) {
+      is(UInt(PInc), UInt(PDec), UInt(Inc), UInt(Dec)) {
         ip := ip + UInt(1)
       }
     }
 
     // update dp
     switch (op) {
-      is(op_pinc) {
+      is(UInt(PInc)) {
         dp := dp + UInt(1)
       }
-      is(op_pdec) {
+      is(UInt(PDec)) {
         dp := dp - UInt(1)
       }
     }
 
     // IO
     switch (op) {
-      is(op_put) {
+      is(UInt(Put)) {
         when (io.tx.ready) {
           io.tx.valid := Bool(true)
           io.tx.bits := operand
         }
       }
-      is(op_get) {
+      is(UInt(Get)) {
         when (io.rx.valid) {
           io.rx.ready := Bool(false)
         } .otherwise {
