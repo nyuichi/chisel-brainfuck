@@ -7,9 +7,7 @@ class InitIO(aw: Int, dw: Int) extends Bundle {
   val bits = UInt(INPUT, dw)
 }
 
-class Brainfuck extends Module {
-  val dentries = 32768
-  val ientries = 1024
+class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Module {
 
   val io = new Bundle {
     val init = Bool(INPUT)
