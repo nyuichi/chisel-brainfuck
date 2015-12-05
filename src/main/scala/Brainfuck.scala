@@ -7,6 +7,21 @@ class InitIO(aw: Int, dw: Int) extends Bundle {
   val bits = UInt(INPUT, dw)
 }
 
+object Brainfuck {
+
+  val Inc  = 0
+  val Dec  = 1
+  val PInc = 2
+  val PDec = 3
+  val Put  = 4
+  val Get  = 5
+  val Jz   = 6
+  val Jmp  = 7
+
+  lazy val InstList = Seq(Inc, Dec, PInc, PDec, Put, Get, Jz, Jmp)
+
+}
+
 class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Module {
 
   val io = new Bundle {
@@ -23,7 +38,7 @@ class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Mod
   val ip = Reg(init = UInt(0, log2Up(ientries)))
   val dp = Reg(init = UInt(0, log2Up(dentries)))
 
-  val op_inc :: op_dec :: op_pinc :: op_pdec :: op_put :: op_get :: op_jz :: op_jmp :: Nil = Enum(UInt(), 8)
+  val Seq(op_inc, op_dec, op_pinc, op_pdec, op_put, op_get, op_jz, op_jmp) = Brainfuck.InstList map { UInt(_) }
 
   val res = UInt(width = 8)
 
@@ -129,28 +144,30 @@ class Brainfuck(val dentries: Int = 32768, val ientries: Int = 1024) extends Mod
 
 class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
 
-  def compile(str: String): Seq[UInt] = {
+  import Brainfuck._
+
+  def compile(str: String): Seq[Int] = {
     var i = 0
-    def go(): Seq[UInt] = {
-      val bc = scala.collection.mutable.MutableList.empty[UInt]
+    def go(): Seq[Int] = {
+      val bc = scala.collection.mutable.MutableList.empty[Int]
       while (i < str.length) {
         str(i) match {
-          case '+' => i += 1; bc += c.op_inc
-          case '-' => i += 1; bc += c.op_dec
-          case '>' => i += 1; bc += c.op_pinc
-          case '<' => i += 1; bc += c.op_pdec
-          case '.' => i += 1; bc += c.op_put
-          case ',' => i += 1; bc += c.op_get
+          case '+' => i += 1; bc += Inc
+          case '-' => i += 1; bc += Dec
+          case '>' => i += 1; bc += PInc
+          case '<' => i += 1; bc += PDec
+          case '.' => i += 1; bc += Put
+          case ',' => i += 1; bc += Get
           case '[' => {
             i += 1
             val ibc = go()
-            bc += c.op_jz
-            bc += UInt(ibc.length + 3)
+            bc += Jz
+            bc += ibc.length + 3
             bc ++= ibc
             assert(str(i) == ']')
             i += 1
-            bc += c.op_jmp
-            bc += UInt(ibc.length + 3)
+            bc += Jmp
+            bc += ibc.length + 3
           }
           case ']' => {
             return bc
@@ -163,7 +180,7 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
     go()
   }
 
-  def boot(bc: Seq[UInt]) {
+  def boot(bc: Seq[Int]) {
     poke(c.io.tx.ready, 0)
     poke(c.io.rx.valid, 0)
     poke(c.io.rx.bits, 0)
@@ -191,7 +208,7 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
 
       poke(c.io.code.valid, 1)
       poke(c.io.code.addr, t)
-      poke(c.io.code.bits, v.litValue())
+      poke(c.io.code.bits, v)
     }
 
     step(1)
@@ -230,7 +247,7 @@ class BrainfuckTests(c: Brainfuck) extends Tester(c, isTrace = false) {
   assert(s == "Hello, world!")
 }
 
-object Brainfuck {
+object BrainfuckMain {
   def main(args: Array[String]): Unit = {
     chiselMainTest(args, () => Module(new Brainfuck)) { c =>
       new BrainfuckTests(c)
